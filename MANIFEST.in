@@ -1,0 +1,2 @@
+graft benchmarks_server/templates
+graft benchmarks_server/static
