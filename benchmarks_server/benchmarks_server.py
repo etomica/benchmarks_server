@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from collections import defaultdict
 
 from flask.json import jsonify
 
@@ -22,19 +23,41 @@ def results():
 def get_results():
     json_names = [f for f in os.listdir(RESULTS_DIR) if f.endswith('.json')]
 
-    all_results = []
+    results_by_param = defaultdict(lambda: defaultdict(list))
+    dates_to_commits = dict()
+
+
     for fname in json_names:
         date, githash = re.split('[_.]', fname)[:2]
+        dates_to_commits[date] = githash
 
         with open(os.path.join(RESULTS_DIR, fname)) as file:
-            benchmarks = json.load(file)
-            result = {
-                "date": date,
-                "commit": githash,
-                "benchmarks": benchmarks
-            }
+            run_results = json.load(file)
+            for bench_result in run_results:
+                b = results_by_param[bench_result['benchmark']]
+                params = bench_result['params']
+                if 'numMolecules' in params.keys():
+                    param = params['numMolecules']
+                else:
+                    param = params['numAtoms']
 
-            all_results.append(result)
+                score = [
+                    bench_result['primaryMetric']['score'],
+                    bench_result['primaryMetric']['scoreError']
+                ]
 
-    return all_results
+                b[param].append(score)
 
+    benchmarks = defaultdict(dict)
+    for bench_name, param_results in results_by_param.items():
+        keys = [k for k in param_results.keys()]
+        keys.sort(key=lambda s: int(s))
+
+        bench = benchmarks[bench_name]
+        bench['data'] = [d for d in zip(dates_to_commits.keys(), *[param_results[k] for k in keys])]
+        bench['labels'] = ["Date", *keys]
+
+    return {
+        "benchmarks": benchmarks,
+        "commits": dates_to_commits
+    }
