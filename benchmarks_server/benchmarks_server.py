@@ -24,12 +24,14 @@ def get_results():
     json_names = [f for f in os.listdir(RESULTS_DIR) if f.endswith('.json')]
 
     results_by_param = defaultdict(lambda: defaultdict(list))
-    dates_to_commits = dict()
+    dates = []
+    commits = []
 
 
     for fname in json_names:
         date, githash = re.split('[_.]', fname)[:2]
-        dates_to_commits[date] = githash
+        dates.append(date)
+        commits.append(githash)
 
         with open(os.path.join(RESULTS_DIR, fname)) as file:
             run_results = json.load(file)
@@ -54,10 +56,10 @@ def get_results():
         keys.sort(key=lambda s: int(s))
 
         bench = benchmarks[bench_name]
-        bench['data'] = [d for d in zip(dates_to_commits.keys(), *[param_results[k] for k in keys])]
+        bench['data'] = [d for d in zip(dates, *[param_results[k] for k in keys])]
         bench['labels'] = ["Date", *keys]
 
     return {
         "benchmarks": benchmarks,
-        "commits": dates_to_commits
+        "commits": commits
     }
